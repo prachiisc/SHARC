@@ -14,8 +14,8 @@ It creates a lists folder to store the meta-data.
 
 # dataset=ami_sdm_train # training set
 
-dataset=vox_diar # vox_diar_test
-njobs=40
+dataset=$1 # vox_diar vox_diar_test
+njobs=$2 # 40 - vox, 15 - AMI
 
 data=tools_diar/data
 
@@ -33,7 +33,7 @@ nnet_dir=$fullpath/exp_xvec/xvector_nnet_1a_tdnn_fbank
 ########### STAGE ##############################
 stage=1
 
-python=/home/xxx/.conda/envs/SHARC/bin/python # path of python containing required libraries
+python=python # path of python containing required libraries
 if [ $stage -le 1 ]; then
   # features extraction
   for name in $dataset; do
