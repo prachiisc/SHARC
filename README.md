@@ -8,7 +8,7 @@ This is the implementation of the following paper:
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Running the recipes](#running-the-recipes)
-- [Expected results](#expected-results)
+<!-- - [Expected results](#expected-results) -->
 - [Cite](#cite)
 - [Contact](#contact) 
 
@@ -19,8 +19,8 @@ The following packages are required to run the code.
 - [Python](https://www.python.org/) >= 3.7
 - [Kaldi](https://github.com/kaldi-asr/kaldi)
 - [dscore](https://github.com/nryant/dscore)
-- [Voxconverse]
-- [AMI] 
+- [Voxconverse](https://www.robots.ox.ac.uk/~vgg/data/voxconverse/)
+- [AMI](https://huggingface.co/datasets/edinburghcstr/ami)
 
 ## Pretrained Models
 The following pretrained models are provided.
@@ -52,7 +52,7 @@ If you are a Kaldi novice, please consult the following for additional documenta
 - Go to cloned repository and copy kaldi path in ``path.sh`` given as:
  ```sh
  $ local_dir="Full_path_of_cloned_repository"
- $ echo "export KALDI_ROOT="/path_of_kaldi_directory/kaldi" >> $local_dir/path.sh
+ $ Add "export KALDI_ROOT=/path_of_kaldi_directory/kaldi" in the first line of $local_dir/path.sh
  ```
 - Create Softlinks of necessary directories:
 ```
@@ -62,6 +62,8 @@ $ . ./path.sh
 $ ln -sf $KALDI_ROOT/egs/wsj/s5/utils .  # utils dir
 $ ln -sf $KALDI_ROOT/egs/wsj/s5/steps .  # steps dir
 ```
+- Check the data directories in tools_diar/data
+Change tools_diar/data/datasetname/wav.scp with your path of wavfiles.
 
 ## Running the recipes
 
@@ -111,8 +113,6 @@ nj : number of jobs [min(15,number of processors available)]
 ```bash
    bash scripts/train_xvec.sh <Vox/AMI>
 ```
-
-## Expected results
 
 ## Cite
 If you are using the resource, please cite as follows: <br />
