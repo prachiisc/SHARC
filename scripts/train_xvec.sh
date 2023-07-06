@@ -2,7 +2,7 @@
 . ./path.sh
 
 # which dataset to train on
-stage=Vox # AMI
+stage=$1 # Vox,AMI
 
 
 if [ $stage == "Vox" ]; then
