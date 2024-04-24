@@ -3,6 +3,8 @@ This is the implementation of the following paper:
 - Singh, Prachi, et. al. (2023)."Supervised Hierarchical Clustering using Graph Neural Networks for Speaker Diarization." Proceedings of ICASSP 2023.
 ([paper](https://arxiv.org/pdf/2302.12716.pdf))
 
+## 
+- 24-04-2024 : Updated ReadMe and added missing dir
 ## Overview
 
 - [Prerequisites](#prerequisites)
@@ -49,18 +51,18 @@ $ conda activate SHARC
 If you are a Kaldi novice, please consult the following for additional documentation:
     - [Kaldi tutorial](http://kaldi-asr.org/doc/tutorial.html)
     - [Kaldi for Dummies tutorial](http://kaldi-asr.org/doc/kaldi_for_dummies.html)
-- Go to cloned repository and copy kaldi path in ``path.sh`` given as:
+<!-- - Go to cloned repository and copy kaldi path in ``path.sh`` given as: -->
+- Go to cloned repository and create Softlinks of necessary directories given as:
+
+ <!-- Add "export KALDI_ROOT=/path_of_kaldi_directory/kaldi" in the first line of $local_dir/path.sh -->
+
  ```sh
- $ local_dir="Full_path_of_cloned_repository"
- $ Add "export KALDI_ROOT=/path_of_kaldi_directory/kaldi" in the first line of $local_dir/path.sh
- ```
-- Create Softlinks of necessary directories:
-```
 $ local_dir="Full_path_of_cloned_repository"
+$ KALDI_PATH=/path_of_kaldi_directory/kaldi
 $ cd $local_dir
+$ ln -sf $KALDI_PATH kaldi
 $ . ./path.sh
-$ ln -sf $KALDI_ROOT/egs/wsj/s5/utils .  # utils dir
-$ ln -sf $KALDI_ROOT/egs/wsj/s5/steps .  # steps dir
+$ ln -sf kaldi/egs/wsj/s5/steps .  # steps dir
 ```
 - Check the data directories in tools_diar/data
 Change tools_diar/data/datasetname/wav.scp with your path of wavfiles.

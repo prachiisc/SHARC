@@ -1,4 +1,4 @@
-export KALDI_ROOT="/state/partition1/softwares/Kaldi_Jan_2023/kaldi" # path where Kaldi is installed
+export KALDI_ROOT="kaldi" # path where Kaldi is installed
 [ -f $KALDI_ROOT/tools/env.sh ] && . $KALDI_ROOT/tools/env.sh
 export PATH=$PWD/utils/:$KALDI_ROOT/tools/openfst/bin:$PWD:$PATH
 [ ! -f $KALDI_ROOT/tools/config/common_path.sh ] && echo >&2 "The standard file $KALDI_ROOT/tools/config/common_path.sh is not present -> Exit!" && exit 1
