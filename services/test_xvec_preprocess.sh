@@ -1,11 +1,11 @@
 #/bin/bash
-'''
-This code generates xvectors using the pre-trained ETDNN model.
-It involves filterbank feature extraction and then xvector extraction using window size and period shift. 
 
-This code also generates groundtruth speaker labels for each segments for training and evaluation. 
-It creates a lists folder to store the meta-data. 
-'''
+# This code generates xvectors using the pre-trained ETDNN model.
+# It involves filterbank feature extraction and then xvector extraction using window size and period shift. 
+
+# This code also generates groundtruth speaker labels for each segments for training and evaluation. 
+# It creates a lists folder to store the meta-data. 
+
 . ./cmd.sh
 . ./path.sh
 
@@ -24,16 +24,58 @@ win=1.5
 period=0.75
 ################
 
-data_dir=data/$dataset
+data_dir=$data/$dataset
 fullpath=`pwd`/tools_diar
 fbankdir=tools_diar/fbank
 
 nnet_dir=$fullpath/exp_xvec/xvector_nnet_1a_tdnn_fbank
-
+pyannote_pretrained_model=vad_benchmarking/VAD_model/pytorch_model.bin
 ########### STAGE ##############################
-stage=1
+stage=5
 
 python=python # path of python containing required libraries
+issad=0
+sad_type=pyannote #silero #pyannote
+if [ $issad -eq 1 ];then
+  if [ $sad_type == "pyannote" ];then
+    # 0.6 0.8 0.9
+    for onset in 0.5; do
+      offset=$onset
+      sad_exp=tools_diar/exp_sad/hyper_${dataset}_onset${onset}_offset${offset}_min_duration_on0.0554_min_duration_off0.0979_seg
+      # sad_exp=/data1/prachis/Amrit_sharc/tools_diar/data/ami_eval_fbank_seg/hyper_onset0.3_offset0.3_min_duration_on0.0554_min_duration_off0.0979
+
+      sad_decode_stage=1
+      sad_python=/home/prachis/.conda/envs/pyannote/bin/python
+      sad_dir=$data/${dataset}_seg
+      echo "$0: Applying SAD model to DEV/EVAL..."
+      sad_model=$pyannote_pretrained_model
+
+      vad_benchmarking/run_pyannote_SAD.sh \
+        --nj $njobs --stage $sad_decode_stage \
+        --PYTHON $sad_python --eval_sad true \
+        --onset $onset --offset $offset \
+        $data/$dataset $sad_exp \
+        $sad_model 
+    done
+  elif [ $sad_type == "silero" ];then
+    sad_exp=tools_diar/exp_sad/${dataset}_silero_seg
+
+    sad_decode_stage=4
+    sad_python=python
+    sad_dir=$data/${dataset}_silero_seg
+
+     vad_benchmarking/run_silero_SAD.sh \
+      --nj $njobs --stage $sad_decode_stage \
+      --PYTHON $sad_python --eval_sad true \
+      $data/$dataset $sad_exp 
+  else
+    echo "None of the condition met"
+  fi
+  # dataset=${dataset}_seg
+fi
+
+
+
 if [ $stage -le 1 ]; then
   # features extraction
   for name in $dataset; do
@@ -106,8 +148,8 @@ if [ $stage -le 5 ]; then
 
   gt_rttm=$data/$dataset/rttm
   # gt_rttm=lists/$dataset/rttm
-
-  for threshold in 0.5 0.25; do
+  # 0.5
+  for threshold in 0.25; do
     segments=$DEV_XVEC_DIR/segments
     labels_dir=tools_diar/ALL_GROUND_LABELS/${dataset2}/threshold_${threshold}
     python services/generate_groundtruth_label_sequence.py \
@@ -128,11 +170,11 @@ if [ $stage -le 5 ]; then
 
 fi
 
-
+exit
 if [ $stage -le 6 ]; then
     SSC_fold=./
     rm -f $data/$dataset/reco2num_spk
-    cat $data/$dataset/${dataset}.list | while read i; do
+    
     awk '{print $1}' $data/$dataset/wav.scp | while read i; do
       numspk=`grep $i $data/$dataset/rttm | awk '{print $8}' | sort | uniq | wc -l`
       echo "$i $numspk" >> $data/$dataset/reco2num_spk

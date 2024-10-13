@@ -244,6 +244,7 @@ def sum_metrics(*metrics):
         # result.uris_.update(metric.uris_)
         for cname in metric.components_:
             result.accumulated_[cname] += metric.accumulated_[cname]
+    
     return result
 
 

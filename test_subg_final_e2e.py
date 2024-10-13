@@ -115,7 +115,7 @@ def write_results_dict(fname, output_file, results_dict, reco2utt):
                 output_label.writelines(towrite)
         output_label.close()
 
-        rttm_channel=1
+        rttm_channel=0
         segmentsfile = args.segments+'/'+f+'.segments'
         python = args.which_python
         # python = '/home/prachis/miniconda3/envs/mytorch/bin/python'
@@ -140,57 +140,118 @@ def compute_score(rttm_gndfile,rttm_newfile,outpath,overlap):
       output=subprocess.check_output(bashCommand,shell=True)
       return float(output.decode('utf-8').rstrip())
 
-def extract_xvectors(recid,model):
+def extract_xvectors(recid,model,save='true'):
+    from kaldiio import WriteHelper
     reco2utt = reco2utt_dict[recid]
+
+    fileark = f'{args.xvecpath_out}/xvector_{recid}.ark'
+    filescp = f'{args.xvecpath_out}/xvector_{recid}.scp'
+    if os.path.isfile(fileark):
+        if save == 'true':
+            return
+        else:
+            from kaldiio import ReadHelper
+            xvec_features=[]
+            with ReadHelper(f'scp:{filescp}') as reader:
+                for key, numpy_array in reader:
+                    xvec_features.append(numpy_array) # appending utterances
+            xvec_features = np.array(xvec_features)
+            return xvec_features
+                
     
     mfcc_feats,_ = load_mfcc_feats_nosilence(args,recid,featsdict,reco2utt,featsbatch=1)
     feats_fname = f'{args.xvecpath}/{recid}.npy'
-    features = np.load(feats_fname)
+    
+    try:
+       features = np.load(feats_fname)
+    except:
+        if not '.scp' in args.xvecpath:
+            feats_fname = f'{args.xvecpath}/xvector.scp'
+        else:
+            feats_fname = f'{args.xvecpath}'
+    
+    features = get_features(feats_fname,reco2utt)
+
+
     mfcc_features = torch.FloatTensor(mfcc_feats).to(device)
     org_xvecs = torch.FloatTensor(features).to(device)
     print('mfcc: ',mfcc_features.shape)
     print(features.shape,flush=True)
     mfcc_xvec_features = model.extract_xvecs(mfcc_features,org_xvecs)
     xvec_features = mfcc_xvec_features.cpu().detach().numpy()
-    np.save(f'{args.xvecpath_out}/{recid}.npy',xvec_features)
-    print(f'{args.xvecpath_out}/{recid}.npy')
+    # np.save(f'{args.xvecpath_out}/{recid}.npy',xvec_features)
+    # print(f'{args.xvecpath_out}/{recid}.npy')
+    if save == 'true':
+        utts = reco2utt.rstrip().split()
+        
+        with WriteHelper(f'ark,scp:{fileark},{filescp}') as writer:
+            for i,key in enumerate(utts):
+                writer(key, xvec_features[i])
+    else:
+        return xvec_features
     
-def extract_xvectors_pldafeats(recid,model,fid2fname,arkf):
-    print(recid)
-    reco2utt = reco2utt_dict[recid]
-    # bp()
-    labels_fname = f'{args.labelspath}/labels_{fid2fname[recid]}'
-    mfcc_feats,_ = load_mfcc_feats_nosilence(args,recid,featsdict,reco2utt,featsbatch=1)
-    feats_fname = f'{args.xvecpath}/{recid}.npy'
-    features = np.load(feats_fname)
+def extract_xvectors_pldafeats(recid,model,fid2fname,arkf=None):
 
+    from kaldiio import WriteHelper
+    print(recid)
+    
+    fileark = f'{args.xvecpath_out}/xvector_{recid}.ark'
+    filescp = f'{args.xvecpath_out}/xvector_{recid}.scp'
+    fileutt2spk = f'{args.xvecpath_out}/filewise_utt2spk/utt2spk_{recid}'
+    print(fileutt2spk)
+    fileutt2spk_fd = open(fileutt2spk,'w')
+    labels_fname = f'{args.labelspath}/labels_{fid2fname[recid]}'
     with open(labels_fname,"r") as f:
         label_file = f.readlines()
     clean_ind = []  
-    for i,line in enumerate(label_file):
-        label = line.split()
-        if len(label) == 2:
-            clean_ind.append(i)
+
+    if os.path.isfile(fileark):
+        if os.path.getsize(fileutt2spk) == 0:
+            for i,line in enumerate(label_file):
+                label = line.split()
+                if len(label) == 2:
+                    clean_ind.append(i)
+                    key = f'{label[1]}_{label[0]}' # groundtruth utterance id
+                    fileutt2spk_fd.writelines(f'{key} {label[1]}\n')
+            fileutt2spk_fd.close()
+        return
+    xvec_features = extract_xvectors(recid,model,save='false')
+    # reco2utt = reco2utt_dict[recid]    
+    # mfcc_feats,_ = load_mfcc_feats_nosilence(args,recid,featsdict,reco2utt,featsbatch=1)
+    # feats_fname = f'{args.xvecpath}/{recid}.npy'
+    # features = np.load(feats_fname)
+
+    with WriteHelper(f'ark,scp:{fileark},{filescp}') as writer:
+        for i,line in enumerate(label_file):
+            label = line.split()
+            if len(label) == 2:
+                clean_ind.append(i)
+                # save in ark file 
+                key = f'{label[1]}_{label[0]}' # groundtruth utterance id
+                writer(key, xvec_features[i])
+                fileutt2spk_fd.writelines(f'{key} {label[1]}\n')
+        fileutt2spk_fd.close()
+    
             
-    clean_ind = np.array(clean_ind)
-    labels = np.array(label_file)[clean_ind]
-    mfcc_features = torch.FloatTensor(mfcc_feats[clean_ind]).to(device)
-    org_xvecs = torch.FloatTensor(features[clean_ind]).to(device)
-    print('mfcc: ',mfcc_features.shape)
-    print(features.shape,flush=True)
-    mfcc_xvec_features = model.extract_xvecs(mfcc_features,org_xvecs)
-    xvec_features = mfcc_xvec_features.cpu().detach().numpy()
+    # clean_ind = np.array(clean_ind)
+    # labels = np.array(label_file)[clean_ind]
+    # mfcc_features = torch.FloatTensor(mfcc_feats[clean_ind]).to(device)
+    # org_xvecs = torch.FloatTensor(features[clean_ind]).to(device)
+    # print('mfcc: ',mfcc_features.shape)
+    # print(features.shape,flush=True)
+    # mfcc_xvec_features = model.extract_xvecs(mfcc_features,org_xvecs)
+    # xvec_features = mfcc_xvec_features.cpu().detach().numpy()
     
     # np.save(f'{args.xvecpath_out}/{recid}.npy',xvec_features)
     # print(f'{args.xvecpath_out}/{recid}.npy')
 
-    xvecdict = {} 
-    for i,line in enumerate(labels):
-        utt,spkid = line.split()
-        xvecs = xvec_features[i]
-        key = f'{spkid}_{utt}' 
-        xvecdict[key] = xvecs 
-        write_vec_flt(arkf, xvecs, key=key)
+    # xvecdict = {} 
+    # for i,line in enumerate(labels):
+    #     utt,spkid = line.split()
+    #     xvecs = xvec_features[i]
+    #     key = f'{spkid}_{utt}' 
+    #     xvecdict[key] = xvecs 
+    #     write_vec_flt(arkf, xvecs, key=key)
 
 
 def get_labels(labels_fname,Nfeats):
@@ -208,6 +269,33 @@ def get_labels(labels_fname,Nfeats):
 
     return labels
 
+def get_features(feats_fname,reco2utt):
+
+    if 'vox' in args.dataset_str :
+        # prefix = '/data1/prachis/Dihard_2020/gae-pytorch/gae/tools_diar/'
+        prefix = f'{os.getcwd()}/'
+    else:
+        prefix = ''
+    
+    featsdict = {}
+    with open(feats_fname) as fpath:
+        for line in fpath: 
+            key, value = line.split(" ",1)
+          
+            featsdict[key] = value.rsplit()[0]
+    
+    utts = reco2utt.rstrip().split()
+    feats_list = []
+
+    for j,utt in enumerate(utts):
+        
+        features = read_vec_flt(f'{prefix}{featsdict[utt]}')
+        feats_list.append(features)
+    
+    features = np.array(feats_list)
+    return features
+
+
 def test(recid,model):
     reco2utt = reco2utt_dict[recid]
     pred_fname = f'{args.out_path}/{recid}_pred_labels_k{args.knn_k}_tau{args.tau}.txt'
@@ -216,7 +304,17 @@ def test(recid,model):
     #     return
     mfcc_feats,idx_xvec = load_mfcc_feats_nosilence(args,recid,featsdict,reco2utt,featsbatch=1)
     feats_fname = f'{args.xvecpath}/{recid}.npy'
-    features = np.load(feats_fname)
+    
+    try:
+       features = np.load(feats_fname)
+    except:
+        if not '.scp' in args.xvecpath:
+            feats_fname = f'{args.xvecpath}/xvector.scp'
+        else:
+            feats_fname = f'{args.xvecpath}'
+
+        features = get_features(feats_fname,reco2utt)
+
     labels_fname = f'{args.labelspath}/labels_{recid}'
     Nfeats = features.shape[0]
     labels = get_labels(labels_fname,Nfeats)
@@ -284,7 +382,7 @@ def test(recid,model):
     global_labels = labels.copy()
     ids = np.arange(g.number_of_nodes())
     global_edges = ([], [])
-    global_peaks = np.array([], dtype=np.long)
+    global_peaks = np.array([], dtype=np.int_) #np.long
     global_edges_len = len(global_edges[0])
     global_num_nodes = g.number_of_nodes()
     global_num_nodes = g.number_of_nodes()
@@ -336,6 +434,7 @@ def test(recid,model):
 
     print("Levels in output graph %d"%(level))
     np.savetxt(pred_fname,global_pred_labels,fmt="%d",delimiter='\n')
+   
     evaluation(global_pred_labels, global_labels, args.metrics)
     ################################################################################################################
     # Generate RTTMs
@@ -352,7 +451,7 @@ def test(recid,model):
     
     rttm_gndfile = args.rttm_ground_path+'/'+recid+'.rttm'
     write_results_dict(recid, out_file, results_dict, reco2utt)
-
+    
     der = compute_score(rttm_gndfile,rttm_newfile,outpath,0)
     if overlap:
         overlap_der = compute_score(rttm_gndfile,rttm_newfile,outpath,1)
@@ -375,15 +474,15 @@ for line in reco2utt_list:
     rec, utt = line.split(" ",1)
     reco2utt_dict[rec] = utt
 
-if "vox" in args.dataset_str:
-    spklist = "uniq_spkr_list_vox"
-elif "ami" in  args.dataset_str:
-    spklist = "uniq_spk_ids_ami"
-with open(spklist,"r") as f:
-    spk_ids = f.readlines()
-spk_dct = {}
-for i,spk_id in enumerate(spk_ids):
-    spk_dct[spk_id[:-1]] = i
+# if "vox" in args.dataset_str:
+#     spklist = "uniq_spkr_list_vox"
+# elif "ami" in  args.dataset_str:
+#     spklist = "uniq_spk_ids_ami"
+# with open(spklist,"r") as f:
+#     spk_ids = f.readlines()
+# spk_dct = {}
+# for i,spk_id in enumerate(spk_ids):
+#     spk_dct[spk_id[:-1]] = i
     
 ########################################################################################
 mode = args.mode.split(",")
@@ -420,19 +519,27 @@ if args.splitlist is not None:
         for recid in recsublist:
             test(recid,model)
     elif args.mymode=='extract_xvec':
-        if not os.path.exists(args.model_filename_e2e):
-            torch.save(model.mylander.state_dict(),args.model_filename_e2e)
+        # if not os.path.exists(args.model_filename_e2e):
+        #     torch.save(model.mylander.state_dict(),args.model_filename_e2e)
         for recid in recsublist:
             extract_xvectors(recid,model)
     elif args.mymode == 'extract_pldafeats':
-        pair_list = open(args.file_pairs).readlines()
-        fid2fname = {}
-        for line in pair_list:
-            fid, fname = line.split()
-            fid2fname[fid] = fname
-        with open(args.ark_file,'wb') as arkf:
+        if args.file_pairs is not None:
+            pair_list = open(args.file_pairs).readlines()
+            fid2fname = {}
+            for line in pair_list:
+                fid, fname = line.split()
+                fid2fname[fid] = fname
+        else:
+            fid2fname = {}
             for recid in recsublist:
-                extract_xvectors_pldafeats(recid,model,fid2fname,arkf)
+                fid2fname[recid] = recid
+
+        
+        # with open(args.ark_file,'wb') as arkf:
+        for recid in recsublist:
+            # extract_xvectors_pldafeats(recid,model,fid2fname,arkf)
+            extract_xvectors_pldafeats(recid,model,fid2fname)
 else:
     recid = args.feats_file
     test(recid,model)

@@ -10,7 +10,7 @@ import dgl
 import torch
 import torch.optim as optim
 from pdb import set_trace as bp
-from models_final import SHARC
+from models_final import SHARC, SHARC_LSTM
 from dataset_final import SHARCDataset
 
 import sys
@@ -53,33 +53,40 @@ def arguments():
 
     #paths
     parser.add_argument('--filegroupcount',type=int,default=10)
-    parser.add_argument('--xvec_dim',type=int,default=512)
     parser.add_argument('--file_pairs', type=str, default=None)
+    parser.add_argument('--xvecdim',type=int,default=512)
     parser.add_argument('--xvecpath', type=str, default=None)
     parser.add_argument('--labelspath', type=str, default=None)
     parser.add_argument('--reco2utt_list', type=str, default=None)
+    parser.add_argument('--lists_path', type=str, default="lists")
     parser.add_argument('--dataset_str', type=str, default=None)
     parser.add_argument('--feats_norm',type=int,default=0,help='Normalize features before GNN')
     parser.add_argument('--model_filename_init', type=str, default=None,help='Initialize the SHARC model')
     parser.add_argument('--model_savepath', type=str, default=None)
     parser.add_argument('--ngpu',type=int)
-    parser.add_argument('--xvecdim',type=int,default=512)
+    
     parser.add_argument('--pldamodel',type=str,default=None)
     parser.add_argument('--loss_weight',type=float,default=0.5)
     parser.add_argument('--fixfilecount', action='store_true')
     parser.add_argument('--labelspath_test', type=str, default=None)
+    parser.add_argument('--test', type=str, default="ami_dev_0.75s",help="test dataset in lists folder")
+    parser.add_argument('--spk_ids_list', type=str, default=None, help="list of unique speaker ids")
     parser.add_argument('--reco2utt_list_test', type=str, default=None)
     parser.add_argument('--xvecpath_test', type=str, default=None)
     parser.add_argument('--knn_k_val', type=str, default='60')
     parser.add_argument('--overlap', action='store_true')
     parser.add_argument('--isswa',type=str,default=None,help='stochastic weighted averaging')
     parser.add_argument('--ldatransform',type=str,default=None)
+    
 
     # different lander architecture
     parser.add_argument('--lander_type',type=str,default=None)
     parser.add_argument('--temp_param', type=str, default='5,0.95') # temporal continuity parameters, neb, beta1
     
     parser.add_argument('--outpath',type=str,default=None)
+    parser.add_argument('--resume_lr',action='store_true',help="use the previous checkpoint lr")
+    parser.add_argument('--milestone',type=int,default=20,help="epoch to save the checkpoint")
+    
     args = parser.parse_args()  
     return args
 args = arguments()
@@ -125,8 +132,9 @@ def prepare_dataset_test(set='test'):
     k_list_val = [int(k) for k in args.knn_k_val.split(',')]
     
     # prefix = '/data1/prachis/SRE_19/Self_supervised_clustering/tools_diar'
-    prefix = ''
-    with open("uniq_spkr_list","r") as f:
+    
+    
+    with open(f'{args.lists_path}/{args.test}/uniq_spkr_test',"r") as f:
         spk_ids = f.readlines()
     spk_dct = {}
     for i,spk_id in enumerate(spk_ids):
@@ -145,6 +153,10 @@ def prepare_dataset_test(set='test'):
             key, value = line.split(" ",1)
             featsdict[key] = value.rsplit()[0]
     # bp()
+    if '/data1' in featsdict[key]:
+        prefix = ''
+    else:
+        prefix = os.getcwd() 
     train_filelist = np.array(list(reco2utt_dict_test.keys()))
     # train_filelist = train_filelist[:1]
     filegroup_count = 1
@@ -229,13 +241,13 @@ def prepare_dataset(set='train',prefix='/data1/prachis/Dihard_2020/gae-pytorch/g
         reco2utt_dict[rec] = utt
     
     if set=='train':
-        filepath = 'lists/{}/shuffled_list.txt'.format(args.dataset_str)
+        filepath = '{}/{}/shuffled_list.txt'.format(args.lists_path,args.dataset_str)
     elif set=='val':
-        filepath = 'lists/{}/{}.list'.format(args.dataset_str,set)
+        filepath = '{}/{}/{}.list'.format(args.lists_path,args.dataset_str,set)
     train_list = np.genfromtxt(filepath,dtype=float).astype(int)
     
     # filelist = np.array(list(reco2utt_dict.keys()))
-    filelist = np.genfromtxt(f'lists/{args.dataset_str}/{args.dataset_str}.list',dtype=str)
+    filelist = np.genfromtxt(f'{args.lists_path}/{args.dataset_str}/{args.dataset_str}.list',dtype=str)
     train_filelist = filelist[train_list]
     # train_filelist = train_filelist[45:] # for checking
     
@@ -259,6 +271,7 @@ def prepare_dataset(set='train',prefix='/data1/prachis/Dihard_2020/gae-pytorch/g
                 if len(label) == 2 :
                     mykey = label[0] 
                     features = read_vec_flt(f'{prefix}/{featsdict[mykey]}') # check which features are empty
+                    
                     if len(features) ==0:
                         bp()
                     feats_list.append(features)
@@ -280,7 +293,7 @@ def prepare_dataset(set='train',prefix='/data1/prachis/Dihard_2020/gae-pytorch/g
         if counter % filegroup_count == 0:
             labels_group = np.array(labels_group)
             print("Create graphs for recording %s"%(recid))
-         
+            
         #dataset preparation includes creating ground truth graph levels for different level list with different knn
             for k, l in zip(k_list, lvl_list):
                 dataset = SHARCDataset(features=features_group, labels=labels_group, mode=mode, k=k,
@@ -295,7 +308,7 @@ def prepare_dataset(set='train',prefix='/data1/prachis/Dihard_2020/gae-pytorch/g
             if not args.fixfilecount:
                 filegroup_count = np.random.randint(1,args.filegroupcount)
             counter = 0
-
+  
     print("Num graphs = %d"%(len(gs)))
     print('Dataset Prepared.',flush=True)
     return gs
@@ -396,7 +409,7 @@ def train(graph_ids):
         checkpoints['optimizer'] = opt.state_dict()
         checkpoints['scheduler'] = scheduler.state_dict()
         torch.save(checkpoints, f'{args.model_savepath}/model_final.pth')
-        if (epoch+1) % 20 == 0:
+        if (epoch+1) % args.milestone == 0:
             
             torch.save(checkpoints,f'{args.model_savepath}/model_{epoch+1}_snapshot.pth')
         
@@ -473,68 +486,6 @@ def train_swa1(graph_ids):
     torch.save(checkpoints, f'{args.model_savepath}/model_final.pth')
 
 
-def train_swa2(graph_ids):
-    ###############
-    # Training Loop
-    # bp()
-    swa_start = 50
-    import torchcontrib
-    swa_opt = torchcontrib.optim.SWA(opt, swa_start=swa_start, swa_freq=5, swa_lr=args.lr/10)
-    
-    for epoch in range(args.epochs):
-        model.train()
-        loss_den_val_total = []
-        loss_conn_val_total = []
-        loss_val_total = []
-        random.shuffle(graph_ids)
-        for batch in range(num_batches):
-            swa_opt.zero_grad()
-            try:
-                graph_batch = graph_ids[batch*args.batch_size:(batch+1)*args.batch_size]
-            except:
-                graph_batch = graph_ids[batch*args.batch_size:]
-
-            for graph_id in graph_batch:
-                
-                # get the feature for the input_nodes
-                g = gs[graph_id].to(device)
-                output_bipartite = model(g)
-                loss, loss_den_val, loss_conn_val = model.compute_loss(output_bipartite)
-                loss_den_val_total.append(loss_den_val)
-                loss_conn_val_total.append(loss_conn_val)
-                loss_val_total.append(loss.item())
-                loss.backward()
-                del g
-                torch.cuda.empty_cache()
-                if (batch + 1) % 10 == 0:
-                    print('epoch: %d, batch: %d / %d, loss: %.6f, loss_den: %.6f, loss_conn: %.6f'%
-                        (epoch, batch, num_batches, loss.item(), loss_den_val, loss_conn_val))
-                    # sys.stdout.flush()
-            swa_opt.step()
-            torch.cuda.empty_cache()
-            scheduler.step()
-        if epoch >= swa_start:
-            swa_opt.swap_swa_sgd()
-        print('Final_epoch: %d loss: %.6f loss_den: %.6f loss_conn: %.6f'%
-            (epoch, np.array(loss_val_total).mean(),
-            np.array(loss_den_val_total).mean(), np.array(loss_conn_val_total).mean()),flush=True)
-        # sys.stdout.flush()
-        val(epoch,model)
-        checkpoints ={}
-        checkpoints['model'] = model.state_dict()
-        checkpoints['optimizer'] = swa_opt.state_dict()
-        checkpoints['scheduler'] = scheduler.state_dict()
-        torch.save(checkpoints, f'{args.model_savepath}/model_final.pth')
-        if (epoch+1) % 10 == 0:
-            
-            torch.save(checkpoints,f'{args.model_savepath}/model_{epoch+1}_snapshot.pth')
-        
-    checkpoints ={}
-    checkpoints['model'] = model.state_dict()
-    checkpoints['optimizer'] = swa_opt.state_dict()
-    checkpoints['scheduler'] = scheduler.state_dict()
-    torch.save(checkpoints, f'{args.model_savepath}/model_final.pth')
-
 
 def main():
     print('main')
@@ -562,10 +513,10 @@ opt = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum,
 #train_loaders = [iter(train_loader) for train_loader in train_loaders]
 #num_loaders = len(train_loaders)
 if 'displace' in args.dataset_str:
-    spk_ids_list =  f'lists/{args.dataset_str}/uniq_spk_ids'
+    spk_ids_list =  f'{args.lists_path}/{args.dataset_str}/uniq_spk_ids'
     gs = prepare_dataset(set='train',prefix='',spk_ids_list=spk_ids_list)
 else:
-    gs = prepare_dataset(set='train')
+    gs = prepare_dataset(set='train',prefix='',spk_ids_list=args.spk_ids_list)
 num_graphs = len(gs)
 num_batches = math.ceil(num_graphs/args.batch_size)
 graph_ids = list(range(num_graphs))
@@ -575,9 +526,19 @@ scheduler = optim.lr_scheduler.CosineAnnealingLR(opt,
 
 if args.model_filename_init is not None:
     checkpoints = torch.load(args.model_filename_init, map_location=device)
-    model.load_state_dict(checkpoints['model'])
-    opt.load_state_dict(checkpoints['optimizer'])
-    scheduler.load_state_dict(checkpoints['scheduler'])
+    try:
+        model.load_state_dict(checkpoints['model'])
+        
+    except:
+        mylanderdict = {}
+        for key in checkpoints['model'].keys():
+            if 'mylander' in key:
+                mylanderdict[key.split('mylander.')[1]] = checkpoints['model'][key]
+
+        model.load_state_dict(mylanderdict)
+    if args.resume_lr:
+        opt.load_state_dict(checkpoints['optimizer'])
+        scheduler.load_state_dict(checkpoints['scheduler'])
 
 
 model.train()

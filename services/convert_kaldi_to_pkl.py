@@ -23,6 +23,8 @@ def setup():
     cmdparser.add_argument('--kaldi_feats_path', help='path of folder where transform.mat and mean.vec stored', type=str,required=True)
     cmdparser.add_argument('--dataset', help='dataset name', type=str, default="callhome1",required=True)
     cmdparser.add_argument('--output_dir', help='path of SSC main folder to store pickle file', type=str, default="None",required=True)
+    cmdparser.add_argument('--lists', help='name of lists folder to store pickle file', type=str, default="lists",required=True)
+
     cmdparser.add_argument('--convertlda',action='store_true')
 
     cmdargs = cmdparser.parse_args()
@@ -55,7 +57,8 @@ def load_kaldi_matrices(args):
     fold_local = args.kaldi_feats_path
     dataset = args.dataset
     out_fold = args.output_dir
-    outpicklefile = '{}/lists/{}/plda_{}.pkl'.format(out_fold,dataset,dataset)
+    lists=args.lists
+    outpicklefile = '{}/{}/{}/plda_{}.pkl'.format(out_fold,lists,dataset,dataset)
     os.system(f"mkdir -p {out_fold}/lists/{dataset}")
     if os.path.isfile(outpicklefile):
         print("file exits!")

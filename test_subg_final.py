@@ -57,7 +57,7 @@ def arguments():
     parser.add_argument('--reco2utt_list', type=str, default=None)
     parser.add_argument('--segments_list', type=str, default=None)
     parser.add_argument('--dataset_str', type=str, default=None)
-    parser.add_argument('--xvec_dim',type=int,default=512)
+    parser.add_argument('--xvecdim',type=int,default=512)
     parser.add_argument('--file_pairs', type=str, default=None)
     parser.add_argument('--xvecpath', type=str, default=None)
     parser.add_argument('--labelspath', type=str, default=None)
@@ -206,19 +206,23 @@ def test_withplda(recid,model):
     original_tau = args.tau
     tau = args.tau
     reco2utt = reco2utt_dict[recid]
-   
 
     feats_fname = f'{args.xvecpath}/{recid}.npy'
     labels_fname = f'{args.labelspath}/labels_{recid}'
     try:
         features = np.load(feats_fname)   
     except:
-        feats_fname = f'{args.xvecpath}/xvector.scp'
+        if not '.scp' in args.xvecpath:
+            feats_fname = f'{args.xvecpath}/xvector.scp'
+        else:
+            feats_fname = f'{args.xvecpath}'
+        
         features = get_features(feats_fname,reco2utt)
     
     Nfeats = len(features)
+    
     labels,overlap_ind,clean_ind= get_labels(labels_fname,Nfeats)
-
+    
     print(features.shape,labels.shape,flush=True)
    
     # number of edges added is the indicator for early stopping
@@ -238,6 +242,8 @@ def test_withplda(recid,model):
                 affinity_mat, features = get_cosine_mat(features)
             else:
                 affinity_mat, _ = get_cosine_mat(features)
+        elif "cosine_pca" in mode:
+                affinity_mat = get_cosine_mat_pca(features)
             # features = l2norm(features.astype('float32'))
         # global_features = features.copy()
     
@@ -257,7 +263,7 @@ def test_withplda(recid,model):
     global_labels = labels.copy()
     ids = np.arange(g.number_of_nodes())
     global_edges = ([], [])
-    global_peaks = np.array([], dtype=np.long)
+    global_peaks = np.array([], dtype=np.int_) #np.long
     global_edges_len = len(global_edges[0])
     global_num_nodes = g.number_of_nodes()
     global_num_nodes = g.number_of_nodes()
@@ -337,7 +343,7 @@ def test_withplda(recid,model):
     
     rttm_gndfile = args.rttm_ground_path+'/'+recid+'.rttm'
     write_results_dict(recid, out_file, results_dict, reco2utt)
-
+    
     der = compute_score(rttm_gndfile,rttm_newfile,outpath,0)
     if overlap:
         overlap_der = compute_score(rttm_gndfile,rttm_newfile,outpath,1)
@@ -356,28 +362,29 @@ for line in reco2utt_list:
     rec, utt = line.split(" ",1)
     reco2utt_dict[rec] = utt
 
-if 'ami' in args.dataset_str:
-    # with open("data/ami_train/uniq_ids_subtrain","r") as f:
-    # with open("data/ami_train/labels_train/uniq_spk_ids","r") as f:
-    if 'train' in args.dataset_str:
-        uniq_spk_ids = f"lists/{args.dataset_str}/spkall.list"
-    else:
-        uniq_spk_ids = "uniq_spkr_list_ami"
- 
-    with open(uniq_spk_ids,"r") as f:
-        spk_ids = f.readlines()
-elif 'vox_diar' in args.dataset_str:
-    with open("uniq_spkr_list_vox","r") as f:
-        spk_ids = f.readlines()
-else:
-    spklist = f'lists/{args.dataset_str}/spkall.list'
-    with open(spklist,"r") as f:
-        spk_ids = f.readlines()
+# def get_spk_dct():
+#     if 'ami' in args.dataset_str:
+#         # with open("data/ami_train/uniq_ids_subtrain","r") as f:
+#         # with open("data/ami_train/labels_train/uniq_spk_ids","r") as f:
+#         if 'train' in args.dataset_str:
+#             uniq_spk_ids = f"lists/{args.dataset_str}/spkall.list"
+#         else:
+#             uniq_spk_ids = "uniq_spkr_list_ami"
+    
+#         with open(uniq_spk_ids,"r") as f:
+#             spk_ids = f.readlines()
+#     elif 'vox_diar' in args.dataset_str:
+#         with open("uniq_spkr_list_vox","r") as f:
+#             spk_ids = f.readlines()
+#     else:
+#         spklist = f'lists/{args.dataset_str}/spkall.list'
+#         with open(spklist,"r") as f:
+#             spk_ids = f.readlines()
 
-#print(spk_ids)
-spk_dct = {}
-for i,spk_id in enumerate(spk_ids):
-    spk_dct[spk_id[:-1]] = i
+#     #print(spk_ids)
+#     spk_dct = {}
+#     for i,spk_id in enumerate(spk_ids):
+#         spk_dct[spk_id[:-1]] = i
     
 ########################################################################################
 mode = args.mode.split(",")
@@ -385,7 +392,7 @@ mode = args.mode.split(",")
 ##################
 # Model Definition
 if not args.use_gt:
-    feature_dim = args.xvec_dim
+    feature_dim = args.xvecdim
     model = SHARC(feature_dim=feature_dim, nhid=args.hidden,
                    num_conv=args.num_conv, dropout=args.dropout,
                    use_GAT=args.gat, K=args.gat_k,
@@ -417,7 +424,10 @@ if args.splitlist is not None:
     
     for recid in recsublist:
         if args.pldamodel is None:
-            print("Please provide PLDA model in pkl format")
+            if "cosine_pca" in args.mode:
+                test_withplda(recid,model)
+            else:
+                print("Please provide PLDA model in pkl format")
         else:
             test_withplda(recid,model)                
 else:

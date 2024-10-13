@@ -6,6 +6,6 @@ path=$2
 
 rm -f $path/reco2num_spk
 cat lists/$dataset/$dataset.list | while read i; do
-    numspk=`grep $i $path/${i}.rttm | awk '{print $8}' | sort | uniq | wc -l`
+    numspk=`grep $i $path/valrttm | awk '{print $8}' | sort | uniq | wc -l`
     echo "$i $numspk">> $path/reco2num_spk
 done

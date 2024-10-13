@@ -1,0 +1,20 @@
+website: https://huggingface.co/pyannote/segmentation/blob/main/README.md
+
+Reproducible research
+In order to reproduce the results of the paper "End-to-end speaker segmentation for overlap-aware resegmentation ", use pyannote/segmentation@Interspeech2021 with the following hyper-parameters:
+
+Voice activity detection	onset	offset	min_duration_on	min_duration_off
+AMI Mix-Headset	0.684	0.577	0.181	0.037
+DIHARD3	0.767	0.377	0.136	0.067
+VoxConverse	0.767	0.713	0.182	0.501
+
+Overlapped speech detection	onset	offset	min_duration_on	min_duration_off
+AMI Mix-Headset	0.448	0.362	0.116	0.187
+DIHARD3	0.430	0.320	0.091	0.144
+VoxConverse	0.587	0.426	0.337	0.112
+
+Resegmentation of VBx	onset	offset	min_duration_on	min_duration_off
+AMI Mix-Headset	0.542	0.527	0.044	0.705
+DIHARD3	0.592	0.489	0.163	0.182
+VoxConverse	0.537	0.724	0.410	0.563
+Expected outputs (and VBx baseline) are also provided in the /reproducible_research sub-directories.

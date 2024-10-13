@@ -7,10 +7,10 @@ import torch
 import sys
 import errno, os
 from sklearn.metrics import roc_auc_score, average_precision_score, recall_score
-from models_train_ssc_plda import weight_initialization
+# from models_train_ssc_plda import weight_initialization
 from scipy.special import expit
 sys.path.insert(0,'services/')
-import pic_dihard as pic
+# import pic_dihard as pic
 import matplotlib.pyplot as plt
 from scipy.sparse import coo_matrix
 from scipy import sparse
@@ -142,7 +142,7 @@ def load_mfcc_feats_nosilence(args,filename,featsdict,reco2utt,device='cpu',useo
     idx_xvec = np.where(diff_xvec>=0.0)[0] 
     subsample = 1
     idx_xvec = idx_xvec[::subsample]
-    
+   
     if not featsbatch:
         features = []
         for utt in utts:
@@ -167,13 +167,17 @@ def load_mfcc_feats_nosilence(args,filename,featsdict,reco2utt,device='cpu',useo
                 # print('diff short:',diff)
                 low = int(np.floor((win-diff)/2))
                 high = int(np.ceil((win-diff)/2))
-                
-                feats = read_mat(valsplit)[start:start+win]
+                end = min(end+1,start+win)
+                feats = read_mat(valsplit)[start:end]
                 # featspad = np.pad(feats,((low,high),(0,0)),'symmetric')
                 featspad = np.pad(feats,((0,win-diff),(0,0)),'wrap')
+                if len(featspad) > win:
+                    print('size mismatch.')
+                    bp()
+                    
                 features.append(featspad)
             #     print(start,end,end+1-start,utt,round(seg_xvec[uid,1]-seg_xvec[uid,0],2),uid)
-    
+   
     features = np.array(features)
     # features = features[::subsample]
     # features = torch.FloatTensor(features).to(device)

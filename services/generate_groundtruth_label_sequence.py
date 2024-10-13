@@ -47,7 +47,11 @@ def generate_labels(segmentsfile, labelsfiledir, ground_truth_rttm, threshold,ov
         try:
             rttm = rttm[:, rttm_idx]
         except:
-            bp()
+            
+            temp = np.array(['<NA>']*len(rttm)).reshape(-1,1)
+            rttm = np.hstack((rttm,temp))
+            rttm = rttm[:, rttm_idx]
+            
         for j in range(len(segment_boundaries[i])):
             intersect_values, label_idx = indices_with_intersecting_durs(segment_boundaries[i][j],rttm[:,0:2].astype(float), threshold)
             
