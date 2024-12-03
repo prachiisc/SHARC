@@ -1,5 +1,6 @@
-# Supervised Hierarchical Clustering using Graph Neural Networks for Speaker Diarization
-This is the implementation of the following paper:
+# End-to-End Supervised Hierarchical Graph Clustering for Speaker Diarization
+This is the implementation of the following papers:
+- Singh, Prachi, Ganapathy, Sriram, "End-to-End Supervised Hierarchical Graph Clustering for Speaker Diarization", 2024 ([paper](https://arxiv.org/pdf/2401.12850))
 - Singh, Prachi, et. al. (2023)."Supervised Hierarchical Clustering using Graph Neural Networks for Speaker Diarization." Proceedings of ICASSP 2023.
 ([paper](https://arxiv.org/pdf/2302.12716.pdf))
 
@@ -29,6 +30,7 @@ The following pretrained models are provided.
 - ETDNN x-vector model.
 - PLDA models for Voxconverse and AMI dataset.
 - SHARC models for Voxconverse and AMI.
+- ESHARC models for Voxconverse and AMI.
 
 ## Installation
 
