@@ -13,6 +13,9 @@
 # training time
 export train_cmd="queue.pl -q gpu.q" 
 # test time
-export exec_cmd="queue.pl -q long.q -l hostname=compute-0-[0-4]" 
+export exec_cmd="queue.pl -q long.q" 
+
+export exec_cmd_med="queue.pl -q med.q" 
+ 
  
 

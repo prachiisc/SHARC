@@ -25,6 +25,7 @@ The following packages are required to run the code.
 - [dscore](https://github.com/nryant/dscore)
 - [Voxconverse](https://www.robots.ox.ac.uk/~vgg/data/voxconverse/)
 - [AMI](https://huggingface.co/datasets/edinburghcstr/ami)
+- [pyannote](https://github.com/pyannote/pyannote-audio)
 
 ## Pretrained Models
 The following pretrained models are provided.
