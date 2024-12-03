@@ -1,7 +1,8 @@
 # Supervised Hierarchical Clustering using Graph Neural Networks for Speaker Diarization
-This is the implementation of the following paper:
-- Singh, Prachi, et. al. (2023)."Supervised Hierarchical Clustering using Graph Neural Networks for Speaker Diarization." Proceedings of ICASSP 2023.
-([paper](https://arxiv.org/pdf/2302.12716.pdf))
+This is the implementation of the following papers:
+- Singh, Prachi, Ganapathy, Sriram (2024). "Overlap-aware End-to-End Supervised Hierarchical Graph Clustering for Speaker Diarization". ([paper](https://arxiv.org/abs/2401.12850))
+- Singh, Prachi, Kaul Amrit (2023)."Supervised Hierarchical Clustering using Graph Neural Networks for Speaker Diarization." Proceedings of ICASSP 2023.
+([paper](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=10095372, https://arxiv.org/pdf/2302.12716.pdf))
 
 ## 
 - 24-04-2024 : Updated ReadMe and added missing dir
