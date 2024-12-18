@@ -2,8 +2,16 @@
 . ./cmd.sh
 . ./path.sh
 
-stage=1
-stop_stage=1
+# This script performs following for voxconverse dev/eval sets dataset
+# VAD using pyannote when issad=1,
+# The following are the stages
+# stage=0,stop_stage=0 performs x-vector extraction. don't repeat this step again once extracted.
+# overlap=0, stage=1, stop_stage=1: performs ESHARC (no overlap handling)
+# overlap=1, stage=1, stop_stage=1: performs ESHARC+ ESHARC-Ovp (overlap handling using pyannote)
+# stage=2, stop_stage=2: performs VBx using ESHARC-Ovp labels
+
+stage=0
+stop_stage=2
 issad=1 # computing sad 
 overlap=1 # pyannote overlap output is available
 
@@ -38,21 +46,20 @@ if [ $issad -eq 1 ];then
     if [[ (! -d $data/${dataset}) || (! -f $data/${dataset}/segments) ]];then
         #if segments is not present
         for onset in $sadthreshold; do
-        offset=$onset
-        #   sad_exp=tools_diar/exp_sad/hyper_${dataset}_onset${onset}_offset${offset}_min_duration_on0.0554_min_duration_off0.0979_seg
-        
-        sad_decode_stage=1
-        sad_python=/home/prachis/.conda/envs/pyannote/bin/python
-        sad_dir=$data/${dataset}
-        echo "$0: Applying SAD model to DEV/EVAL..."
-        sad_model=$pyannote_pretrained_model
-        
-        vad_benchmarking/run_pyannote_SAD.sh \
-            --nj $nj --stage $sad_decode_stage \
-            --PYTHON $sad_python --eval_sad true \
-            --onset $onset --offset $offset \
-            $data/$dataset_org $sad_dir \
-            $sad_model 
+            offset=$onset
+            #   sad_exp=tools_diar/exp_sad/hyper_${dataset}_onset${onset}_offset${offset}_min_duration_on0.0554_min_duration_off0.0979_seg
+            sad_decode_stage=1
+            sad_python=/home/prachis/.conda/envs/pyannote/bin/python
+            sad_dir=$data/${dataset}
+            echo "$0: Applying SAD model to DEV/EVAL..."
+            sad_model=$pyannote_pretrained_model
+            
+            vad_benchmarking/run_pyannote_SAD.sh \
+                --nj $nj --stage $sad_decode_stage \
+                --PYTHON $sad_python --eval_sad true \
+                --onset $onset --offset $offset \
+                $data/$dataset_org $sad_dir \
+                $sad_model 
         done
     fi
   elif [ $sad_type == "pyannote_2_1" ];then
@@ -63,14 +70,14 @@ if [ $issad -eq 1 ];then
     onset=$sadthreshold
     offset=0.713
     dataset=${dataset}_off${offset}
-    #   sad_exp=tools_diar/exp_sad/hyper_${dataset}_onset${onset}_offset${offset}_min_duration_on0.0554_min_duration_off0.0979_seg
+    
     if [[ (! -d $data/${dataset}) || (! -f $data/${dataset}/segments) ]];then
         sad_decode_stage=3
         sad_python=/home/prachis/.conda/envs/pyannote/bin/python
         sad_dir=$data/${dataset}
         echo "$0: Applying SAD model to DEV/EVAL..."
         sad_model=$pyannote_pretrained_model
-        # --hyper hyper_min_duration_on${min_duration_on}_min_duration_off${min_duration_off} \
+        
         vad_benchmarking/run_pyannote_SAD.sh \
             --nj $nj --stage $sad_decode_stage \
             --PYTHON $sad_python --eval_sad true \
@@ -80,19 +87,7 @@ if [ $issad -eq 1 ];then
             --outputdir "pyannote_vad_2.1" \
             $data/$dataset_org $sad_dir \
             $sad_model 
-        
     fi
-  elif [ $sad_type == "silero" ];then
-    sad_exp=tools_diar/exp_sad/${dataset}_silero_seg
-
-    sad_decode_stage=4
-    sad_python=python
-    sad_dir=$data/${dataset}_silero_seg
-
-     vad_benchmarking/run_silero_SAD.sh \
-      --nj $njobs --stage $sad_decode_stage \
-      --PYTHON $sad_python --eval_sad true \
-      $data/$dataset $sad_exp 
   else
     echo "None of the condition met"
   fi
@@ -122,11 +117,10 @@ echo xvector extraction Execution time was `expr $end - $start` seconds.
 dataset=${dataset}_0.75s
 
 if [ $overlap -eq 0 ];then
-    # E2E_SHARC 
+    # E-SHARC : no overlap handling
     start=`date +%s`
     if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
-        xvecmodelpath_pkl=/data1/prachis/Dihard_2020/gae-pytorch/gae/xvector_models/fbank_jhu_etdnn.pkl
-        # ami_dev_fbank_0.75s
+        xvecmodelpath_pkl=xvector_model/fbank_jhu_etdnn.pkl
         traindataset=librivox
         segments_list=lists/${dataset}/segments_xvec
         reco2utt_list=lists/${dataset}/tmp/spk2utt
@@ -137,17 +131,16 @@ if [ $overlap -eq 0 ];then
 
         filegroupcount=1
         batch_size=4
-        for epochs in 20;do
-   
-        model_savepath=checkpoint/${traindataset}/fulltrain/${traindataset}_nonoverlap_sampler_6_PLDA_e2e_fulltrain.pth_${epochs}_snapshot.pth
+      
+        epochs=20
+        model_savepath=checkpoint_pre_trained/voxconverse/esharc/${traindataset}_nonoverlap_sampler_6_PLDA_e2e_fulltrain.pth_${epochs}_snapshot.pth
         filelist=lists/${dataset}/${dataset}.list
         rttm_ground_path=lists/${dataset}/filewise_rttms/
         segmentspath=lists/${dataset}/segments_xvec/
         echo $rttm_ground_path
         traink=60
         
-        # out_path=exp_sharc/results_with_${traindataset}_e2e_fulltrain_sharcinitk60_lr0.001_k${traink}/withnonorm/$dataset/labels_withoutglobalfeats_norm_${epoch}
-        out_path=exp_sharc/results_with_${dataset}_e2e/fulltrain_epochs${epochs}/labels_withoutglobalfeats_norm_${epochs}
+        out_path=exp_sharc/results_with_${dataset}_e2e/fulltrain_epochs${epochs}/labels_${epochs}
 
         log_path=$out_path/log
         splitname=lists/${dataset}/split$nj
@@ -185,23 +178,23 @@ if [ $overlap -eq 0 ];then
                     --fulltrain 1  
                 
                 bash score_collar.sh $out_path/final_k${k}_tau${tau}rttms/ lists/$dataset/rttm_val $python
-                services/dscore-master/scorelib/md-eval.pl -s $out_path/final_k${k}_tau${tau}rttms/valrttm -r lists/$dataset/rttm_val
+                # services/dscore-master/scorelib/md-eval.pl -s $out_path/final_k${k}_tau${tau}rttms/valrttm -r lists/$dataset/rttm_val
 
             done
         done
 
-        done
+        
         
     fi
     end=`date +%s`
     echo Esharc Execution time was `expr $end - $start` seconds.
 else
     start=`date +%s`
-    # E2E_SHARC-Ovp
+    # E-SHARC-Ovp: with overlap handling
     if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
         traindataset=librivox
-        xvecmodelpath_pkl=/data1/prachis/Dihard_2020/gae-pytorch/gae/xvector_models/fbank_jhu_etdnn.pkl
-        segments_list=lists//${dataset}/segments_xvec
+        xvecmodelpath_pkl=xvector_model/fbank_jhu_etdnn.pkl
+        segments_list=lists/${dataset}/segments_xvec
         reco2utt_list=lists/${dataset}/tmp/spk2utt
         featspath=$DEV_XVEC_DIR/subsegments_data/feats.scp
         xvecpath=$DEV_XVEC_DIR/
@@ -219,12 +212,9 @@ else
         batch_size=4
         overlap_th=0.0
         density_gap=0.0
-
-        for epochs in 20;do
+        epochs=20
         
-        model_savepath=checkpoint/${traindataset}/fulltrain/${traindataset}_nonoverlap_sampler_6_PLDA_e2e_fulltrain.pth_${epochs}_snapshot.pth
-        # model_savepath=checkpoint/${traindataset}/${traindataset}_nonoverlap_sampler_3_PLDA_e2e_fulltrain_nonorm_filecount1_batchsize2/sharcinitk60_lr0.001/model_${epoch}_snapshot.pth
-        #  model_savepath=checkpoint/fulltrain_2ndpass/librivox_nonoverlap_sampler_6_PLDA_e2e_fulltrain_2ndpass_batch_size2/
+        model_savepath=checkpoint_pre_trained/voxconverse/esharc/${traindataset}_nonoverlap_sampler_6_PLDA_e2e_fulltrain.pth_${epochs}_snapshot.pth
         filelist=lists/${dataset}/${dataset}.list
         rttm_ground_path=lists/${dataset}/filewise_rttms/
         segmentspath=lists/${dataset}/segments_xvec/
@@ -272,11 +262,11 @@ else
                 
                 # echo "with overlap collar"
                 bash score_collar.sh $out_path/final_k${k}_tau${tau}_ovpth${overlap_th}_2ndpassk${k_2ndpass}_density_gap${density_gap}_overlaprttms/ lists/$dataset/rttm_val $python
-                services/dscore-master/scorelib/md-eval.pl -s $out_path/final_k${k}_tau${tau}_ovpth${overlap_th}_2ndpassk${k_2ndpass}_density_gap${density_gap}_overlaprttms/valrttm -r lists/$dataset/rttm_val 
+                # services/dscore-master/scorelib/md-eval.pl -s $out_path/final_k${k}_tau${tau}_ovpth${overlap_th}_2ndpassk${k_2ndpass}_density_gap${density_gap}_overlaprttms/valrttm -r lists/$dataset/rttm_val 
             done
         done
 
-        done
+        
         end=`date +%s`
         echo Total Execution time was `expr $end - $startfull` seconds.
     fi

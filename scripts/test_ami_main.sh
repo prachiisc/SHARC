@@ -2,7 +2,8 @@
 . ./cmd.sh
 . ./path.sh
 
-# This script performs VAD using pyannote when issad=1,
+# This script performs following for ami dev/eval sets dataset
+# VAD using pyannote when issad=1,
 # The following are the stages
 # stage=0,stop_stage=0 performs x-vector extraction. don't repeat this step again once extracted.
 # overlap=0, stage=1, stop_stage=1: performs ESHARC (no overlap handling)
@@ -49,34 +50,23 @@ start=`date +%s`
 if [ $issad -eq 1 ];then
   if [ $sad_type == "pyannote" ];then
     if [ ! -f $data/${dataset}/segments ];then
-    #if segments is not present
-    for onset in $sadthreshold; do
-      offset=$onset
-      sad_decode_stage=1
+      #if segments is not present
+      for onset in $sadthreshold; do
+        offset=$onset
+        sad_decode_stage=1
+        
+        sad_dir=$data/${dataset}
+        echo "$0: Applying SAD model to DEV/EVAL..."
+        sad_model=$pyannote_pretrained_model
       
-      sad_dir=$data/${dataset}
-      echo "$0: Applying SAD model to DEV/EVAL..."
-      sad_model=$pyannote_pretrained_model
-     
-      vad_benchmarking/run_pyannote_SAD.sh \
-        --nj $nj --stage $sad_decode_stage \
-        --PYTHON $sad_python --eval_sad true \
-        --onset $onset --offset $offset \
-        $data/$dataset_org $sad_dir \
-        $sad_model 
-    done
+        vad_benchmarking/run_pyannote_SAD.sh \
+          --nj $nj --stage $sad_decode_stage \
+          --PYTHON $sad_python --eval_sad true \
+          --onset $onset --offset $offset \
+          $data/$dataset_org $sad_dir \
+          $sad_model 
+      done
     fi
-  elif [ $sad_type == "silero" ];then
-    sad_exp=tools_diar/exp_sad/${dataset}_silero_seg
-
-    sad_decode_stage=4
-    sad_python=python
-    sad_dir=$data/${dataset}_silero_seg
-
-     vad_benchmarking/run_silero_SAD.sh \
-      --nj $njobs --stage $sad_decode_stage \
-      --PYTHON $sad_python --eval_sad true \
-      $data/$dataset $sad_exp 
   else
     echo "None of the condition met"
   fi
@@ -108,10 +98,11 @@ if [ $overlap -eq 0 ];then
         pldamodel=plda_models/ami_sdm_train_gnd/plda_ami_sdm_train_gnd.pkl
         filegroupcount=1
         batch_size=4
-        for epoch in 20;do
+        
+        epochs=20
         traindataset=ami_sdm_train
         # model_savepath=checkpoint/${traindataset}/${traindataset}_nonoverlap_sampler_3_PLDA_e2e_fulltrain_nonorm_filecount1_batchsize2/sharcinitk60_lr0.001/model_${epoch}_snapshot.pth
-        model_savepath=checkpoint_pre_trained/ami/esharc/ami_sdm_train_model_best.pth
+        model_savepath=checkpoint_pre_trained/ami/esharc/ami_sdm_train_model_${epochs}_snapshot.pth
         filelist=lists/${dataset}/${dataset}.list
         rttm_ground_path=lists/${dataset}/filewise_rttms/
         segmentspath=lists/${dataset}/segments_xvec/
@@ -160,7 +151,7 @@ if [ $overlap -eq 0 ];then
                 
             done
         done
-        done
+        
         
     fi
     end=`date +%s`
@@ -189,11 +180,12 @@ else
         overlap_th=0.0
         density_gap=0.0
 
-        for epoch in 20;do
+    
+        epochs=20
         traindataset=ami_sdm_train
     
         # model_savepath=checkpoint/${traindataset}/${traindataset}_nonoverlap_sampler_3_PLDA_e2e_fulltrain_nonorm_filecount1_batchsize2/sharcinitk60_lr0.001/model_${epoch}_snapshot.pth
-        model_savepath=checkpoint_pre_trained/ami/esharc/ami_sdm_train_model_best.pth
+        model_savepath=checkpoint_pre_trained/ami/esharc/ami_sdm_train_model_${epochs}_snapshot.pth
         filelist=lists/${dataset}/${dataset}.list
         rttm_ground_path=lists/${dataset}/filewise_rttms/
         segmentspath=lists/${dataset}/segments_xvec/
@@ -245,7 +237,7 @@ else
             done
         done
 
-        done
+        
         end=`date +%s`
         echo E-SHARC-Ovp Execution time was `expr $end - $start` seconds.
     fi

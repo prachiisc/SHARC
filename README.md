@@ -3,10 +3,10 @@ This is the implementation of the following papers:
 - Singh, Prachi, Ganapathy, Sriram, "End-to-End Supervised Hierarchical Graph Clustering for Speaker Diarization", 2024 ([paper](https://arxiv.org/pdf/2401.12850))
 
 - Singh, Prachi, Kaul Amrit (2023)."Supervised Hierarchical Clustering using Graph Neural Networks for Speaker Diarization." Proceedings of ICASSP 2023.
-([paper](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=10095372, https://arxiv.org/pdf/2302.12716.pdf))
+([paper](https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=10095372))
 
 ## 
-- 24-04-2024 : Updated ReadMe and added missing dir
+- 24-04-2024 : Updated ReadMe and added missing directories
 ## Overview
 
 - [Prerequisites](#prerequisites)
@@ -25,14 +25,14 @@ The following packages are required to run the code.
 - [dscore](https://github.com/nryant/dscore)
 - [Voxconverse](https://www.robots.ox.ac.uk/~vgg/data/voxconverse/)
 - [AMI](https://huggingface.co/datasets/edinburghcstr/ami)
-- [pyannote](https://github.com/pyannote/pyannote-audio)
+- [pyannote 2.1](https://github.com/pyannote/pyannote-audio)
 
 ## Pretrained Models
 The following pretrained models are provided.
 - ETDNN x-vector model.
 - PLDA models for Voxconverse and AMI dataset.
 - SHARC models for Voxconverse and AMI.
-- ESHARC models for Voxconverse and AMI.
+- E-SHARC models for Voxconverse and AMI.
 
 ## Installation
 
@@ -40,7 +40,7 @@ The following pretrained models are provided.
 
 - clone the repo:
 ```bash
-$ git clone git@github.com:prachiisc/SHARC.git
+$ git clone -b ESHARC git@github.com:prachiisc/SHARC.git
 $ cd SHARC
 ```
 
@@ -51,6 +51,8 @@ Make sure to activate the environment before proceeding.
 $ conda create --name SHARC --file requirements.txt
 $ conda activate SHARC
 ```
+- It is recommended to install pyannote in different environment to avoid clashes.
+
 - Install [Kaldi](https://github.com/kaldi-asr/kaldi). 
 If you are a Kaldi novice, please consult the following for additional documentation:
     - [Kaldi tutorial](http://kaldi-asr.org/doc/tutorial.html)
@@ -68,10 +70,26 @@ $ ln -sf $KALDI_PATH kaldi
 $ . ./path.sh
 $ ln -sf kaldi/egs/wsj/s5/steps .  # steps dir
 ```
-- Check the data directories in tools_diar/data
-Change tools_diar/data/datasetname/wav.scp with your path of wavfiles.
+- Check the data directories in `tools_diar/data`. <br>
+Change `tools_diar/data/<datasetname>/wav.scp` with your path of wavfiles.
 
-## Running the recipes
+## Running the E-SHARC recipes
+We include full recipes for reproducing the results for Voxconverse and AMI dataset:
+
+### Testing on the AMI dataset
+The following scripts perform Speech activity detection (SAD/VAD), X-vector extraction, E-SHARC, E-SHARC-Ovp, VBx in different stages.
+
+```bash
+   bash scripts/test_ami_main.sh
+```
+
+### Testing on the Voxconverse dataset
+The following scripts perform Speech activity detection (SAD/VAD), X-vector extraction, E-SHARC, E-SHARC-Ovp, VBx in different stages.
+
+```bash
+   bash scripts/test_vox_main.sh
+```
+## Running the SHARC recipes
 
 We include full recipes for reproducing the results for Voxconverse and AMI dataset:
 
