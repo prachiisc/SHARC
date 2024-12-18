@@ -141,9 +141,17 @@ nj : number of jobs [min(15,number of processors available)]
 ## Cite
 If you are using the resource, please cite as follows: <br />
 ```
+@article{singh2024overlap,
+  title={End-to-End Supervised Hierarchical Graph Clustering for Speaker Diarization},
+  author={Singh, Prachi and Ganapathy, Sriram},
+  journal={arXiv preprint arXiv:2401.12850v2},
+  year={2024}
+}
+```
+```
 @INPROCEEDINGS{10095372,  
   author={Singh, Prachi and Kaul, Amrit and Ganapathy, Sriram},
-  booktitle={2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},  
+  booktitle={IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},  
   title={Supervised Hierarchical Clustering Using Graph Neural Networks for Speaker Diarization},  
   year={2023}, 
   volume={}, 
@@ -151,5 +159,6 @@ If you are using the resource, please cite as follows: <br />
   doi={10.1109/ICASSP49357.2023.10095372}}
   
  ```
+
 ## Contact
 If you have any comment or question, please contact prachisingh@iisc.ac.in
